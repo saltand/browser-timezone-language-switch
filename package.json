@@ -2,8 +2,9 @@
   "name": "browser-timezone-language-switch",
   "description": "manifest.json description",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.4",
   "type": "module",
+  "packageManager": "pnpm@10.20.0",
   "scripts": {
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
@@ -12,6 +13,7 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "compile": "tsc --noEmit",
+    "release": "bumpp package.json pnpm-lock.yaml",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
@@ -24,6 +26,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@wxt-dev/module-react": "^1.1.5",
+    "bumpp": "^11.0.1",
     "typescript": "^5.9.3",
     "wxt": "^0.20.20"
   }
