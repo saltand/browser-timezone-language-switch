@@ -1,0 +1,27 @@
+entrypoints/popup/App.css
+  cee7e09f91240c2c 2,18-23,29-30,40-137,255-261,270-282,369-370,373-380,384-391,397-398,408-411,416-422
+entrypoints/popup/App.tsx
+  cee7e09f91240c2c 1,5-6,8-9,11-12,14-17,20-44,47-49,51-56,58-59,62-87,141-146,150-151,168-169,188-214,217-218,230-232,235-236,241-243,268,280-296,299-346,349-351,359-361,363,367-372,374-389,395-426,429-459,511,517-519,524-529,531-539,561-562
+utils/storage.ts
+  cee7e09f91240c2c 2-3,9-10,13-74,80-81,85-91,95-112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.15",
+  "base_commit_sha": "1d698de4e711844e0bb9f6d8d2725d806b0ac172",
+  "prompts": {
+    "cee7e09f91240c2c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d08e6-aab8-7773-80dd-8f250b18bde6",
+        "model": "gpt-5.4"
+      },
+      "human_author": "saltand <u6a69a9@outlook.com>",
+      "messages": [],
+      "total_additions": 712,
+      "total_deletions": 205,
+      "accepted_lines": 571,
+      "overriden_lines": 0
+    }
+  }
+}
