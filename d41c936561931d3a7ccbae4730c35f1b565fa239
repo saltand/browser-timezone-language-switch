@@ -1,0 +1,25 @@
+.github/workflows/release.yml
+  90320b0c5b837b04 25-29,34-35,38,41,45-46
+.gitignore
+  90320b0c5b837b04 9
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.15",
+  "base_commit_sha": "d41c936561931d3a7ccbae4730c35f1b565fa239",
+  "prompts": {
+    "90320b0c5b837b04": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019d0aa3-396c-7121-868a-df2f530bb250",
+        "model": "gpt-5.4"
+      },
+      "human_author": "saltand <u6a69a9@outlook.com>",
+      "messages": [],
+      "total_additions": 12,
+      "total_deletions": 6,
+      "accepted_lines": 12,
+      "overriden_lines": 0
+    }
+  }
+}
