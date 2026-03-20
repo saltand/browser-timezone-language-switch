@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:wxt.dev)",
+      "WebFetch(domain:deepwiki.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl:*)"
+    ]
+  }
+}
