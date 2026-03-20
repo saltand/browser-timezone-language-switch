@@ -1,4 +1,5 @@
-import { rulesStorage } from '@/utils/storage';
+import { sortRulesByPriority } from '@/utils/rules';
+import { getRules, watchRules } from '@/utils/storage';
 import { patternToDnrCondition } from '@/utils/domainMatch';
 
 const ALL_RESOURCE_TYPES: chrome.declarativeNetRequest.ResourceType[] = [
@@ -14,8 +15,8 @@ const ALL_RESOURCE_TYPES: chrome.declarativeNetRequest.ResourceType[] = [
 ];
 
 async function syncDnrRules() {
-  const rules = await rulesStorage.getValue();
-  const enabledRules = rules.filter((r) => r.enabled);
+  const rules = await getRules();
+  const enabledRules = sortRulesByPriority(rules.filter((rule) => rule.enabled));
 
   // Remove all existing dynamic rules
   const existing = await chrome.declarativeNetRequest.getDynamicRules();
@@ -25,7 +26,7 @@ async function syncDnrRules() {
   const addRules: chrome.declarativeNetRequest.Rule[] = enabledRules.map(
     (rule, index) => ({
       id: index + 1,
-      priority: 1,
+      priority: enabledRules.length - index,
       action: {
         type: 'modifyHeaders' as const,
         requestHeaders: [
@@ -50,9 +51,9 @@ async function syncDnrRules() {
 }
 
 export default defineBackground(() => {
-  syncDnrRules();
+  void syncDnrRules();
 
-  rulesStorage.watch(() => {
-    syncDnrRules();
+  watchRules(() => {
+    void syncDnrRules();
   });
 });

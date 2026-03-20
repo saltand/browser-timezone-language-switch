@@ -1,29 +1,90 @@
-import { useState, useEffect, useCallback } from 'react';
-import { rulesStorage, addRule, deleteRule, toggleRule, updateRule } from '@/utils/storage';
-import { matchesDomain, suggestDomainPattern } from '@/utils/domainMatch';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  addRule,
+  deleteRule,
+  getRules,
+  mergeRules,
+  toggleRule,
+  updateRule,
+  watchRules,
+} from '@/utils/storage';
+import { getDuplicateRuleMeta, getDomainPatternKey, sortRulesForDisplay } from '@/utils/rules';
+import { suggestDomainPattern } from '@/utils/domainMatch';
 import { LANGUAGES, TIMEZONES } from '@/utils/types';
-import type { Rule } from '@/utils/types';
+import { HEADER_ICONS } from './headerIcons';
+import type { ChangeEvent } from 'react';
+import type { Rule, RuleDraft } from '@/utils/types';
+import type { HeaderIconName } from './headerIcons';
 import './App.css';
 
-function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const DEFAULT_LANGUAGE = LANGUAGES[0]?.value ?? 'en-US,en;q=0.9';
+const DEFAULT_TIMEZONE = 'America/New_York';
+
+type ImportExportPayload = {
+  version: number;
+  exportedAt: string;
+  rules: Rule[];
+};
+
+type StatusState = {
+  tone: 'error';
+  message: string;
+};
+
+function Icon({ name }: { name: HeaderIconName }) {
+  const icon = HEADER_ICONS[name];
+
+  return (
+    <svg
+      className="header-icon-svg"
+      viewBox={`0 0 ${icon.width} ${icon.height}`}
+      aria-hidden="true"
+      dangerouslySetInnerHTML={{ __html: icon.body }}
+    />
+  );
 }
 
-function sortRulesByHostname(rules: Rule[], hostname: string | null): Rule[] {
-  if (!hostname) return rules;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
 
-  const matchedRules: Rule[] = [];
-  const unmatchedRules: Rule[] = [];
+function normalizeImportedRules(input: unknown): RuleDraft[] {
+  const rawRules = Array.isArray(input)
+    ? input
+    : isRecord(input) && Array.isArray(input.rules)
+      ? input.rules
+      : null;
 
-  for (const rule of rules) {
-    if (matchesDomain(rule.domainPattern, hostname)) {
-      matchedRules.push(rule);
-    } else {
-      unmatchedRules.push(rule);
-    }
+  if (!rawRules) {
+    throw new Error('Invalid import file.');
   }
 
-  return [...matchedRules, ...unmatchedRules];
+  return rawRules.map((rawRule, index) => {
+    if (!isRecord(rawRule)) {
+      throw new Error(`Rule ${index + 1} is invalid.`);
+    }
+
+    const domainPattern = typeof rawRule.domainPattern === 'string'
+      ? rawRule.domainPattern.trim()
+      : '';
+    if (!domainPattern) {
+      throw new Error(`Rule ${index + 1} is missing domainPattern.`);
+    }
+
+    const language = typeof rawRule.language === 'string' && rawRule.language.trim()
+      ? rawRule.language
+      : DEFAULT_LANGUAGE;
+    const timezone = typeof rawRule.timezone === 'string' && rawRule.timezone.trim()
+      ? rawRule.timezone
+      : DEFAULT_TIMEZONE;
+
+    return {
+      domainPattern,
+      language,
+      timezone,
+      enabled: typeof rawRule.enabled === 'boolean' ? rawRule.enabled : true,
+    };
+  });
 }
 
 const timezoneOffsetCache = new Map<string, string>();
@@ -77,11 +138,17 @@ function App() {
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [currentHostname, setCurrentHostname] = useState<string | null>(null);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [status, setStatus] = useState<StatusState | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   // Form state
   const [domainPattern, setDomainPattern] = useState('');
-  const [language, setLanguage] = useState(LANGUAGES[0].value);
-  const [timezone, setTimezone] = useState('America/New_York');
+  const [language, setLanguage] = useState(DEFAULT_LANGUAGE);
+  const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
 
   const getActiveTabHostname = useCallback(async (): Promise<string | null> => {
     try {
@@ -98,10 +165,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    rulesStorage.getValue().then(setRules);
-    const unwatch = rulesStorage.watch((newRules) => {
-      if (newRules) setRules(newRules);
-    });
+    getRules().then(setRules);
+    const unwatch = watchRules(setRules);
     return unwatch;
   }, []);
 
@@ -120,10 +185,37 @@ function App() {
     };
   }, [getActiveTabHostname]);
 
+  useEffect(() => {
+    if (!status) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setStatus(null);
+    }, 3200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [status]);
+
+  useEffect(() => {
+    if (isSearchOpen && !showForm) {
+      searchInputRef.current?.focus();
+    }
+  }, [isSearchOpen, showForm]);
+
+  useEffect(() => {
+    if (rules.length === 0 && (isSearchOpen || searchQuery)) {
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    }
+  }, [isSearchOpen, rules.length, searchQuery]);
+
   const resetForm = useCallback(() => {
     setDomainPattern('');
-    setLanguage(LANGUAGES[0].value);
-    setTimezone('America/New_York');
+    setLanguage(DEFAULT_LANGUAGE);
+    setTimezone(DEFAULT_TIMEZONE);
     setEditingRule(null);
     setShowForm(false);
   }, []);
@@ -135,14 +227,20 @@ function App() {
       setCurrentHostname(hostname);
     }
 
+    setIsSearchOpen(false);
+    setSearchQuery('');
+    setStatus(null);
     setEditingRule(null);
     setDomainPattern(hostname ? suggestDomainPattern(hostname) : '');
-    setLanguage(LANGUAGES[0].value);
-    setTimezone('America/New_York');
+    setLanguage(DEFAULT_LANGUAGE);
+    setTimezone(DEFAULT_TIMEZONE);
     setShowForm(true);
   };
 
   const handleEdit = (rule: Rule) => {
+    setIsSearchOpen(false);
+    setSearchQuery('');
+    setStatus(null);
     setEditingRule(rule);
     setDomainPattern(rule.domainPattern);
     setLanguage(rule.language);
@@ -161,13 +259,13 @@ function App() {
       });
     } else {
       await addRule({
-        id: generateId(),
         domainPattern: domainPattern.trim(),
         language,
         timezone,
         enabled: true,
       });
     }
+
     resetForm();
   };
 
@@ -179,11 +277,78 @@ function App() {
     await toggleRule(id);
   };
 
+  const handleExport = () => {
+    const payload: ImportExportPayload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      rules,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+
+    anchor.href = url;
+    anchor.download = `tz-lang-rules-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  const handleImportButtonClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleToggleSearch = () => {
+    if (showForm || rules.length === 0) {
+      return;
+    }
+
+    if (isSearchOpen) {
+      setIsSearchOpen(false);
+      setSearchQuery('');
+      return;
+    }
+
+    setStatus(null);
+    setIsSearchOpen(true);
+  };
+
+  const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      const content = await file.text();
+      const parsed = JSON.parse(content) as unknown;
+      const importedRules = normalizeImportedRules(parsed);
+      const confirmed = window.confirm(
+        `Merge ${importedRules.length} imported rule${importedRules.length === 1 ? '' : 's'} into the current ${rules.length} rule${rules.length === 1 ? '' : 's'}? Duplicate domains will be kept, and newer rules will take effect.`,
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      await mergeRules(importedRules);
+      setSearchQuery('');
+      resetForm();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Import failed.';
+      setStatus({ tone: 'error', message });
+    }
+  };
+
   const getLangLabel = (val: string) =>
     (() => {
-      const language = LANGUAGES.find((l) => l.value === val);
-      if (language) {
-        return formatLanguageDisplay(language.label, language.value);
+      const languageOption = LANGUAGES.find((languageItem) => languageItem.value === val);
+      if (languageOption) {
+        return formatLanguageDisplay(languageOption.label, languageOption.value);
       }
 
       const code = getPrimaryLanguageCode(val);
@@ -191,23 +356,107 @@ function App() {
     })();
 
   const getTzLabel = (val: string) => {
-    for (const g of TIMEZONES) {
-      const z = g.zones.find((z) => z.value === val);
-      if (z) return formatTimezoneDisplay(z.label, z.value);
+    for (const group of TIMEZONES) {
+      const zone = group.zones.find((timezoneItem) => timezoneItem.value === val);
+      if (zone) return formatTimezoneDisplay(zone.label, zone.value);
     }
+
     return formatTimezoneDisplay(val, val);
   };
 
-  const visibleRules = sortRulesByHostname(rules, currentHostname);
+  const { duplicateCounts, effectiveRuleIdByDomain } = getDuplicateRuleMeta(rules);
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
+  const visibleRules = sortRulesForDisplay(rules, currentHostname).filter((rule) => {
+    if (!normalizedSearchQuery) {
+      return true;
+    }
+
+    const searchableText = [
+      rule.domainPattern,
+      rule.language,
+      rule.timezone,
+      getLangLabel(rule.language),
+      getTzLabel(rule.timezone),
+    ]
+      .join(' ')
+      .toLowerCase();
+
+    return searchableText.includes(normalizedSearchQuery);
+  });
+
+  const showEmptyState = rules.length === 0 && !showForm;
+  const showSearchEmptyState = rules.length > 0 && visibleRules.length === 0;
+  const showSearchBar = !showForm && rules.length > 0 && isSearchOpen;
 
   return (
     <div className="popup">
       <header className="popup-header">
         <h1>TZ & Lang Switcher</h1>
-        <button className="btn-add" onClick={handleAdd} title="Add rule">
-          +
-        </button>
+        <div className="header-actions">
+          <button
+            className={`btn-header-icon ${isSearchOpen ? 'is-active' : ''}`}
+            onClick={handleToggleSearch}
+            title="Search rules"
+            aria-label="Search rules"
+            aria-pressed={isSearchOpen}
+            disabled={rules.length === 0 || showForm}
+          >
+            <Icon name="search" />
+          </button>
+          <button
+            className="btn-header-icon"
+            onClick={handleImportButtonClick}
+            title="Import rules"
+            aria-label="Import rules"
+          >
+            <Icon name="import" />
+          </button>
+          <button
+            className="btn-header-icon"
+            onClick={handleExport}
+            title="Export rules"
+            aria-label="Export rules"
+            disabled={rules.length === 0}
+          >
+            <Icon name="export" />
+          </button>
+          <button className="btn-add" onClick={handleAdd} title="Add rule" aria-label="Add rule">
+            <Icon name="add-round" />
+          </button>
+        </div>
       </header>
+
+      {showSearchBar && (
+        <div className="toolbar">
+          <div className="toolbar-row">
+            <input
+              ref={searchInputRef}
+              className="search-input"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search domain, language, timezone"
+            />
+            <span className="toolbar-count">
+              {visibleRules.length}/{rules.length}
+            </span>
+          </div>
+        </div>
+      )}
+
+      <input
+        ref={fileInputRef}
+        className="file-input"
+        type="file"
+        accept="application/json,.json"
+        onChange={handleImportFile}
+      />
+
+      {status && (
+        <div className={`status-banner ${status.tone}`} role="alert" aria-live="assertive">
+          {status.message}
+        </div>
+      )}
 
       {showForm && (
         <div className="form-section">
@@ -259,39 +508,58 @@ function App() {
         </div>
       )}
 
-      {rules.length === 0 && !showForm && (
+      {showEmptyState && (
         <div className="empty-state">
           No rules yet. Click + to add one.
         </div>
       )}
 
+      {showSearchEmptyState && (
+        <div className="empty-state">
+          No rules match "{searchQuery.trim()}".
+        </div>
+      )}
+
       <ul className="rule-list">
-        {visibleRules.map((rule) => (
-          <li key={rule.id} className={`rule-item ${!rule.enabled ? 'disabled' : ''}`}>
-            <div className="rule-info">
-              <span className="rule-domain">{rule.domainPattern}</span>
-              <span className="rule-meta">
-                {getLangLabel(rule.language)} · {getTzLabel(rule.timezone)}
-              </span>
-            </div>
-            <div className="rule-actions">
-              <label className="toggle">
-                <input
-                  type="checkbox"
-                  checked={rule.enabled}
-                  onChange={() => handleToggle(rule.id)}
-                />
-                <span className="toggle-slider" />
-              </label>
-              <button className="btn-icon" onClick={() => handleEdit(rule)} title="Edit">
-                &#9998;
-              </button>
-              <button className="btn-icon btn-delete" onClick={() => handleDelete(rule.id)} title="Delete">
-                &#10005;
-              </button>
-            </div>
-          </li>
-        ))}
+        {visibleRules.map((rule) => {
+          const domainKey = getDomainPatternKey(rule.domainPattern);
+          const isDuplicate = (duplicateCounts.get(domainKey) ?? 0) > 1;
+          const isEffective = effectiveRuleIdByDomain.get(domainKey) === rule.id;
+
+          return (
+            <li key={rule.id} className={`rule-item ${!rule.enabled ? 'disabled' : ''}`}>
+              <div className="rule-info">
+                <div className="rule-domain-row">
+                  <span className="rule-domain">{rule.domainPattern}</span>
+                  {isDuplicate && (
+                    <span className={`rule-badge ${isEffective ? 'is-effective' : ''}`}>
+                      {isEffective ? 'Effective' : 'Duplicate'}
+                    </span>
+                  )}
+                </div>
+                <span className="rule-meta">
+                  {getLangLabel(rule.language)} · {getTzLabel(rule.timezone)}
+                </span>
+              </div>
+              <div className="rule-actions">
+                <label className="toggle">
+                  <input
+                    type="checkbox"
+                    checked={rule.enabled}
+                    onChange={() => handleToggle(rule.id)}
+                  />
+                  <span className="toggle-slider" />
+                </label>
+                <button className="btn-icon" onClick={() => handleEdit(rule)} title="Edit">
+                  &#9998;
+                </button>
+                <button className="btn-icon btn-delete" onClick={() => handleDelete(rule.id)} title="Delete">
+                  &#10005;
+                </button>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

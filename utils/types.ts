@@ -4,7 +4,10 @@ export interface Rule {
   language: string;
   timezone: string;
   enabled: boolean;
+  updatedAt: number;
 }
+
+export type RuleDraft = Omit<Rule, 'id' | 'updatedAt'>;
 
 export const LANGUAGES: { value: string; label: string }[] = [
   { value: 'en-US,en;q=0.9', label: 'English (US)' },
