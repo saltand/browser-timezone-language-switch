@@ -13,12 +13,18 @@ Browser Timezone & Language Switch is a browser extension built with WXT and Rea
 ## Development
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 ## Build
 
 ```bash
-npm run build
+pnpm build
+```
+
+## Release
+
+```bash
+pnpm release
 ```
