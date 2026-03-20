@@ -1,0 +1,54 @@
+name: Build Extension Zips
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-zips:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run compile
+
+      - name: Build Chrome zip
+        run: npm run zip
+
+      - name: Build Firefox zip
+        run: npm run zip:firefox
+
+      - name: Upload Chrome zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-zip
+          path: .output/*-chrome.zip
+          if-no-files-found: error
+
+      - name: Upload Firefox zips
+        uses: actions/upload-artifact@v4
+        with:
+          name: firefox-zips
+          path: |
+            .output/*-firefox.zip
+            .output/*-sources.zip
+          if-no-files-found: error
