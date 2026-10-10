@@ -7,6 +7,9 @@ Browser Timezone & Language Switch is a browser extension built with WXT and Rea
 - Create per-site rules with simple domain patterns such as `example.com` (exact host), `*.example.com` (the domain and all subdomains), or `*google*`
 - Override `Accept-Language` for matching requests, and for every request made from a tab showing a matching site (including third-party APIs and CDNs)
 - Spoof `navigator.language`, `navigator.languages`, the default locale of `Intl.*` and `toLocale*` methods, `Intl.DateTimeFormat`, and timezone-related `Date` behavior in the page context, including iframes
+- See at a glance which rule applies to the current tab, with a reload prompt after changes and the language code on the toolbar icon
+- Pick languages and timezones from searchable lists, or enter any language tag / IANA timezone; the timezone follows the chosen language
+- Pause all rules at once, and undo deletes
 - Enable, disable, edit, delete, search, import, and export rules from the popup UI
 - Build for Chromium-based browsers and Firefox with WXT
 

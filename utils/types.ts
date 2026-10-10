@@ -15,25 +15,26 @@ export interface CompiledRule {
 
 export type RuleDraft = Omit<Rule, 'id' | 'updatedAt'>;
 
-export const LANGUAGES: { value: string; label: string }[] = [
-  { value: 'en-US,en;q=0.9', label: 'English (US)' },
-  { value: 'en-GB,en;q=0.9', label: 'English (UK)' },
-  { value: 'zh-CN,zh;q=0.9', label: '简体中文' },
-  { value: 'zh-TW,zh;q=0.9', label: '繁體中文' },
-  { value: 'ja,en-US;q=0.9', label: '日本語' },
-  { value: 'ko,en-US;q=0.9', label: '한국어' },
-  { value: 'fr,en-US;q=0.9', label: 'Français' },
-  { value: 'de,en-US;q=0.9', label: 'Deutsch' },
-  { value: 'es,en-US;q=0.9', label: 'Español' },
-  { value: 'pt-BR,pt;q=0.9', label: 'Português (BR)' },
-  { value: 'ru,en-US;q=0.9', label: 'Русский' },
-  { value: 'ar,en-US;q=0.9', label: 'العربية' },
-  { value: 'hi,en-US;q=0.9', label: 'हिन्दी' },
-  { value: 'it,en-US;q=0.9', label: 'Italiano' },
-  { value: 'nl,en-US;q=0.9', label: 'Nederlands' },
-  { value: 'th,en-US;q=0.9', label: 'ไทย' },
-  { value: 'vi,en-US;q=0.9', label: 'Tiếng Việt' },
-  { value: 'tr,en-US;q=0.9', label: 'Türkçe' },
+// `timezone` is the zone suggested when the language is picked in the form.
+export const LANGUAGES: { value: string; label: string; timezone: string }[] = [
+  { value: 'en-US,en;q=0.9', label: 'English (US)', timezone: 'America/New_York' },
+  { value: 'en-GB,en;q=0.9', label: 'English (UK)', timezone: 'Europe/London' },
+  { value: 'zh-CN,zh;q=0.9', label: '简体中文', timezone: 'Asia/Shanghai' },
+  { value: 'zh-TW,zh;q=0.9', label: '繁體中文', timezone: 'Asia/Taipei' },
+  { value: 'ja,en-US;q=0.9', label: '日本語', timezone: 'Asia/Tokyo' },
+  { value: 'ko,en-US;q=0.9', label: '한국어', timezone: 'Asia/Seoul' },
+  { value: 'fr,en-US;q=0.9', label: 'Français', timezone: 'Europe/Paris' },
+  { value: 'de,en-US;q=0.9', label: 'Deutsch', timezone: 'Europe/Berlin' },
+  { value: 'es,en-US;q=0.9', label: 'Español', timezone: 'Europe/Madrid' },
+  { value: 'pt-BR,pt;q=0.9', label: 'Português (BR)', timezone: 'America/Sao_Paulo' },
+  { value: 'ru,en-US;q=0.9', label: 'Русский', timezone: 'Europe/Moscow' },
+  { value: 'ar,en-US;q=0.9', label: 'العربية', timezone: 'Asia/Dubai' },
+  { value: 'hi,en-US;q=0.9', label: 'हिन्दी', timezone: 'Asia/Kolkata' },
+  { value: 'it,en-US;q=0.9', label: 'Italiano', timezone: 'Europe/Rome' },
+  { value: 'nl,en-US;q=0.9', label: 'Nederlands', timezone: 'Europe/Amsterdam' },
+  { value: 'th,en-US;q=0.9', label: 'ไทย', timezone: 'Asia/Bangkok' },
+  { value: 'vi,en-US;q=0.9', label: 'Tiếng Việt', timezone: 'Asia/Ho_Chi_Minh' },
+  { value: 'tr,en-US;q=0.9', label: 'Türkçe', timezone: 'Europe/Istanbul' },
 ];
 
 export const TIMEZONES: { group: string; zones: { value: string; label: string }[] }[] = [

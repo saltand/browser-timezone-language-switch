@@ -1,5 +1,6 @@
 import { compileRules, getEffectiveRule, getEffectiveRuleForFrame, sortRulesByPriority } from '@/utils/rules';
-import { getRules, watchRules } from '@/utils/storage';
+import { getRules, pausedStorage, watchRules } from '@/utils/storage';
+import { getBadgeText } from '@/utils/locale';
 import { patternToDnrCondition } from '@/utils/domainMatch';
 import { isApplyPageSpoofMessage } from '@/utils/messages';
 import { buildIsolatedWorldScript, buildMainWorldScript, installPageSpoof } from '@/utils/spoofScript';
@@ -25,9 +26,21 @@ let rulesCache: Promise<Rule[]> | undefined;
 let userScriptsActive = false;
 let userScriptsSyncing: Promise<void> | undefined;
 
+/** Rules that should currently apply: none while the user has paused. */
 function loadRules(): Promise<Rule[]> {
-  rulesCache ??= getRules();
+  rulesCache ??= Promise.all([getRules(), pausedStorage.getValue()])
+    .then(([rules, paused]) => (paused ? [] : rules));
   return rulesCache;
+}
+
+// chrome.action on MV3, browserAction on Firefox MV2.
+const actionApi = chrome.action ?? chrome.browserAction;
+
+function updateBadge(tabId: number, rules: Rule[], url: string | undefined) {
+  const hostname = hostnameOf(url);
+  const rule = hostname ? getEffectiveRule(rules, hostname) : undefined;
+  void Promise.resolve(actionApi.setBadgeText({ tabId, text: rule ? getBadgeText(rule.language) : '' }))
+    .catch(() => {});
 }
 
 function hostnameOf(url: string | undefined): string | undefined {
@@ -123,6 +136,10 @@ function syncAllTabRules(rules: Rule[]) {
 
     const addRules: chrome.declarativeNetRequest.Rule[] = [];
     for (const tab of tabs) {
+      if (typeof tab.id === 'number' && tab.id >= 0) {
+        updateBadge(tab.id, rules, tab.url);
+      }
+
       const hostname = hostnameOf(tab.url);
       const rule = hostname ? getEffectiveRule(rules, hostname) : undefined;
       if (typeof tab.id === 'number' && tab.id >= 0 && rule) {
@@ -296,11 +313,21 @@ export default defineBackground({
   persistent: true,
 
   main() {
+    void Promise.resolve(actionApi.setBadgeBackgroundColor({ color: '#646cff' })).catch(() => {});
     void loadRules().then(syncAll);
 
-    watchRules((rules) => {
-      rulesCache = Promise.resolve(rules);
-      void syncAll(rules);
+    const reload = () => {
+      rulesCache = undefined;
+      void loadRules().then(syncAll);
+    };
+    watchRules(reload);
+    pausedStorage.watch(reload);
+
+    // Firefox clears tab-specific badges on navigation, so set it on every load.
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+      if (changeInfo.url || changeInfo.status === 'loading') {
+        void loadRules().then((rules) => updateBadge(tabId, rules, tab.url));
+      }
     });
 
     chrome.webNavigation.onBeforeNavigate.addListener((details) => {

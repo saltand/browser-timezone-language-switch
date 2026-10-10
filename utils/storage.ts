@@ -110,3 +110,24 @@ export async function mergeRules(importedRules: RuleDraft[]): Promise<void> {
 
   await setNormalizedRules([...existingRules, ...mergedImportedRules]);
 }
+
+/** Global switch: when true, no rule is applied anywhere. */
+export const pausedStorage = storage.defineItem<boolean>('local:paused', {
+  fallback: false,
+});
+
+export async function setPaused(paused: boolean): Promise<void> {
+  await pausedStorage.setValue(paused);
+}
+
+/** Put a deleted rule back at its old position, keeping its id and priority. */
+export async function restoreRule(rule: Rule, index: number): Promise<void> {
+  const rules = await getRules();
+  if (rules.some((item) => item.id === rule.id)) {
+    return;
+  }
+
+  const nextRules = [...rules];
+  nextRules.splice(Math.min(Math.max(index, 0), nextRules.length), 0, rule);
+  await setNormalizedRules(nextRules);
+}
