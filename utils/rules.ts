@@ -1,5 +1,5 @@
-import { matchesDomain } from './domainMatch';
-import type { Rule } from './types';
+import { matchesDomain, patternToHostRegexSource } from './domainMatch';
+import type { CompiledRule, Rule } from './types';
 
 function getValidUpdatedAt(value: number | undefined, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0
@@ -92,4 +92,29 @@ export function getDuplicateRuleMeta(rules: Rule[]): {
     duplicateCounts,
     effectiveRuleIdByDomain,
   };
+}
+
+/**
+ * Enabled rules in priority order, with domain patterns pre-compiled to regex
+ * sources so they can be shipped into page / user script code as plain JSON.
+ */
+export function compileRules(rules: Rule[]): CompiledRule[] {
+  return sortRulesByPriority(rules.filter((rule) => rule.enabled)).map((rule) => ({
+    hostRegex: patternToHostRegexSource(rule.domainPattern),
+    language: rule.language,
+    timezone: rule.timezone,
+  }));
+}
+
+/**
+ * Pick the rule for a frame: the top-level site wins so the whole page agrees
+ * on one locale; fall back to the frame's own host when the top has no rule.
+ */
+export function getEffectiveRuleForFrame(
+  rules: Rule[],
+  topHostname: string | undefined,
+  frameHostname: string | undefined
+): Rule | undefined {
+  return (topHostname ? getEffectiveRule(rules, topHostname) : undefined)
+    ?? (frameHostname ? getEffectiveRule(rules, frameHostname) : undefined);
 }

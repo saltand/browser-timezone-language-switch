@@ -8,7 +8,8 @@ export default defineConfig({
     permissions: [
       'declarativeNetRequest',
       'storage',
-      ...(browser === 'firefox' ? [] : ['scripting']),
+      'webNavigation',
+      ...(browser === 'firefox' ? [] : ['scripting', 'userScripts']),
     ],
     host_permissions: ['<all_urls>'],
   }),

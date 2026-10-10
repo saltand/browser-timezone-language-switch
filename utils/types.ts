@@ -7,6 +7,12 @@ export interface Rule {
   updatedAt: number;
 }
 
+export interface CompiledRule {
+  hostRegex: string;
+  language: string;
+  timezone: string;
+}
+
 export type RuleDraft = Omit<Rule, 'id' | 'updatedAt'>;
 
 export const LANGUAGES: { value: string; label: string }[] = [
