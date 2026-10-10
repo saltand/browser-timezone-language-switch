@@ -1,5 +1,5 @@
 import { compileRules } from '@/utils/rules';
-import { getRules } from '@/utils/storage';
+import { getRules, pausedStorage } from '@/utils/storage';
 import { buildSpoofScript, pickRule } from '@/utils/spoofScript';
 import type { ExtensionMessage } from '@/utils/messages';
 
@@ -15,7 +15,9 @@ export default defineContentScript({
   matchAboutBlank: true,
   matchOriginAsFallback: true,
   async main() {
-    const rules = await getRules();
+    const [rules, paused] = await Promise.all([getRules(), pausedStorage.getValue()]);
+    if (paused) return;
+
     const matchedRule = pickRule(compileRules(rules));
     if (!matchedRule) return;
 
