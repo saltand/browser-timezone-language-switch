@@ -1,16 +1,29 @@
 /**
- * Convert a user-specified glob-like domain pattern to a regex test.
- * Supported patterns:
+ * Convert a user-specified glob-like domain pattern to a hostname regex source
+ * (without anchors). Supported patterns:
  *   example.com      — exact match
- *   *.example.com    — any subdomain
+ *   *.example.com    — example.com itself and any subdomain
  *   *google*         — contains "google"
  *   example*         — starts with "example"
+ *
+ * The same source is used for page-side matching and for DNR regexFilter, so
+ * request headers and page APIs always agree on which hosts a rule covers.
  */
+export function patternToHostRegexSource(pattern: string): string {
+  const normalized = pattern.trim().toLowerCase();
+  const escape = (value: string) => value
+    .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/\*/g, '[^/?#@]*');
+
+  if (normalized.startsWith('*.') && !normalized.slice(2).includes('*')) {
+    return `(?:[^/?#@]*\\.)?${escape(normalized.slice(2))}`;
+  }
+
+  return escape(normalized);
+}
+
 export function matchesDomain(pattern: string, hostname: string): boolean {
-  const escaped = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*/g, '.*');
-  const re = new RegExp(`^${escaped}$`, 'i');
+  const re = new RegExp(`^${patternToHostRegexSource(pattern)}$`, 'i');
   return re.test(hostname);
 }
 
@@ -60,19 +73,8 @@ export function suggestDomainPattern(hostname: string): string {
  * Convert a domain pattern to a declarativeNetRequest rule condition.
  */
 export function patternToDnrCondition(pattern: string): chrome.declarativeNetRequest.RuleCondition {
-  // Simple domain (no wildcards) — use requestDomains (auto-matches subdomains)
-  if (!pattern.includes('*')) {
-    return { requestDomains: [pattern] };
-  }
-
-  // *.example.com — matches subdomains; requestDomains handles this
-  if (pattern.startsWith('*.') && !pattern.slice(2).includes('*')) {
-    return { requestDomains: [pattern.slice(2)] };
-  }
-
-  // Complex wildcard — fall back to regexFilter
-  const regexStr = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*/g, '.*');
-  return { regexFilter: `^https?://([^/]*\\.)?${regexStr}(/|$)`, isUrlFilterCaseSensitive: false };
+  return {
+    regexFilter: `^[a-z][a-z0-9+.-]*://(?:[^/?#@]*@)?${patternToHostRegexSource(pattern)}(?::\\d+)?(?:[/?#]|$)`,
+    isUrlFilterCaseSensitive: false,
+  };
 }

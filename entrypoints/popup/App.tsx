@@ -87,6 +87,23 @@ function normalizeImportedRules(input: unknown): RuleDraft[] {
   });
 }
 
+/**
+ * Chromium hides chrome.userScripts until the user allows it; without it the
+ * page spoof falls back to a late (racy) injection.
+ */
+function isUserScriptsDisabled(): boolean {
+  if (!chrome.scripting) {
+    return false;
+  }
+
+  try {
+    void chrome.userScripts.getScripts().catch(() => {});
+    return false;
+  } catch {
+    return true;
+  }
+}
+
 const timezoneOffsetCache = new Map<string, string>();
 
 function getPrimaryLanguageCode(value: string): string {
@@ -141,6 +158,7 @@ function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [status, setStatus] = useState<StatusState | null>(null);
+  const [userScriptsDisabled] = useState(isUserScriptsDisabled);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -425,6 +443,13 @@ function App() {
           </button>
         </div>
       </header>
+
+      {userScriptsDisabled && (
+        <div className="notice">
+          Turn on "Allow User Scripts" for this extension in chrome://extensions so
+          language spoofing applies before the page's own scripts run.
+        </div>
+      )}
 
       {showSearchBar && (
         <div className="toolbar">

@@ -135,6 +135,16 @@
   color: #ffd2d2;
 }
 
+.notice {
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  background: rgba(100, 108, 255, 0.12);
+  border: 1px solid rgba(100, 108, 255, 0.35);
+  color: #c9ccff;
+}
+
 /* Form */
 .form-section {
   background: #2a2a2a;
@@ -404,6 +414,9 @@
   }
   .btn-cancel:hover {
     background: #e8e8e8;
+  }
+  .notice {
+    color: #3a3f9e;
   }
   .status-banner.error {
     background: rgba(255, 241, 240, 0.98);
